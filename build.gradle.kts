@@ -74,6 +74,8 @@ dependencies {
 
     androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.4")
     androidTestImplementation("com.dji:dji-sdk-v5-aircraft:${Versions.dji_sdk}")
+    androidTestImplementation("org.slf4j:slf4j-api:2.0.7")
+    androidTestImplementation("com.github.tony19:logback-android:3.0.0")
 
     androidTestCompileOnly("com.dji:dji-sdk-v5-aircraft-provided:${Versions.dji_sdk}")
     androidTestRuntimeOnly("com.dji:dji-sdk-v5-networkImp:${Versions.dji_sdk}")
@@ -82,4 +84,10 @@ dependencies {
     implementation("com.dji:dji-sdk-v5-aircraft:${Versions.dji_sdk}")
     compileOnly("com.dji:dji-sdk-v5-aircraft-provided:${Versions.dji_sdk}")
     runtimeOnly("com.dji:dji-sdk-v5-networkImp:${Versions.dji_sdk}")
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("org.slf4j:slf4j-api:2.0.7")
+    }
 }

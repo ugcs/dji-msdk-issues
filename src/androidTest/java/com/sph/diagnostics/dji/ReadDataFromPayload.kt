@@ -89,7 +89,6 @@ class ReadDataFromPayload {
 
         val dataChannel = Channel<ByteArray>()
         pm.addPayloadDataListener { data ->
-            log.info("${data.size} bytes received from the payload.")
             val r = dataChannel.trySendBlocking(data)
             if (r.isFailure)
                 dataChannel.close(
@@ -117,7 +116,8 @@ class ReadDataFromPayload {
 
         log.info("Listening for payload data..")
         withTimeout(10.seconds) {
-            dataChannel.receive()
+            val data = dataChannel.receive()
+            log.info("${data.size} bytes received from the payload.")
         }
     }
 
