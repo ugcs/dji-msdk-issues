@@ -1,8 +1,6 @@
 package com.sph.diagnostics.dji
 
-import com.sph.diagnostics.dji.tools.ensureDjiSdkIsInitialized
-import com.sph.diagnostics.dji.tools.listen
-import com.sph.diagnostics.dji.tools.listenPayloadBasicInfo
+import com.sph.diagnostics.dji.tools.*
 import dji.sdk.keyvalue.key.FlightControllerKey
 import dji.v5.et.create
 import dji.v5.manager.KeyManager
@@ -11,6 +9,7 @@ import dji.v5.manager.aircraft.payload.PayloadIndexType
 import dji.v5.manager.interfaces.IPayloadManager
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.trySendBlocking
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -18,7 +17,10 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Test
 
 import org.slf4j.LoggerFactory
+import java.nio.ByteOrder
+import java.util.concurrent.TimeoutException
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 class ReadDataFromPayload {
     /**
@@ -63,15 +65,23 @@ class ReadDataFromPayload {
      * Expected result: the test receive some data from the payload.
      */
     @Test
-    fun mobileAppStartedFirst(): Unit = runBlocking {
+    fun receiveDataFromPayload(): Unit = runBlocking {
         ensureDjiSdkIsInitialized()
 
-        awaitAircraft()
+        log.info("Awaiting an aircraft...")
+        withTimeout(1.minutes) {
+            awaitAircraft()
+        }
+        log.info("Aircraft connected.")
 
         // The payload is connected to the EXTERNAL port
         val pm = PayloadCenter.getInstance().payloadManager[PayloadIndexType.EXTERNAL]!!
 
-        awaitPayload(pm)
+        log.info("Awaiting a payload...")
+        withTimeout(1.minutes) {
+            awaitPayload(pm)
+        }
+        log.info("Payload connected.")
 
 
         // Now we know (from MSDK) that the payload is connected,
@@ -82,11 +92,31 @@ class ReadDataFromPayload {
             log.info("${data.size} bytes received from the payload.")
             val r = dataChannel.trySendBlocking(data)
             if (r.isFailure)
-                dataChannel.close(Exception("Failed to send data to the channel.", r.exceptionOrNull()))
+                dataChannel.close(
+                    Exception(
+                        "Failed to send data to the channel.",
+                        r.exceptionOrNull()
+                    )
+                )
         }
 
-        // Waiting for any data from the payload, up to 30 seconds.
-        withTimeout(2.minutes) {
+        while (true) {
+            try {
+                log.info("Sending data to the payload...")
+                withTimeout(10.seconds) {
+                    pm.sendDataToPayload(pingMessage())
+                }
+            } catch (e: TimeoutException) {
+                log.error("Failed to send data to the payload. Will retry...", e)
+                delay(1.seconds)
+                continue
+            }
+            break
+        }
+        log.info("Sent.")
+
+        log.info("Listening for payload data..")
+        withTimeout(10.seconds) {
             dataChannel.receive()
         }
     }
@@ -95,7 +125,9 @@ class ReadDataFromPayload {
      * Returns as soon as any payload is being connected on the passed payload manager.
      */
     private suspend fun awaitPayload(pm: IPayloadManager) {
-        pm.listenPayloadBasicInfo().first { it.isConnected }
+        pm.listenPayloadBasicInfo().first {
+            it.isConnected
+        }
     }
 
     /**
@@ -115,4 +147,5 @@ class ReadDataFromPayload {
     companion object {
         private val log = LoggerFactory.getLogger(ReadDataFromPayload::class.java)
     }
+
 }

@@ -18,9 +18,11 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
+import java.util.concurrent.TimeoutException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -74,6 +76,18 @@ private suspend fun ISDKManager.init(context: Context) {
     }
 }
 
+suspend fun IPayloadManager.sendDataToPayload(data: ByteArray) = suspendCancellableCoroutine<Unit> {continuation ->
+    sendDataToPayload(data, object : CommonCallbacks.CompletionCallback {
+        override fun onSuccess() {
+            continuation.resume(Unit)
+        }
+
+        override fun onFailure(error: IDJIError) {
+            continuation.resumeWithException(error.asException())
+        }
+    })
+}
+
 fun IPayloadManager.listenPayloadBasicInfo(): Flow<PayloadBasicInfo> = callbackFlow {
     val listener = PayloadBasicInfoListener {
         val r = trySendBlocking(it)
@@ -117,7 +131,9 @@ fun <T> KeyManager.listen(key: DJIKey<T>): Flow<T?> = callbackFlow {
 }
 
 
-fun IDJIError.asException(): DjiErrorException {
+fun IDJIError.asException(): Throwable {
+    if (this.errorCode() == "REQUEST_TIMEOUT")
+        return TimeoutException()
     return DjiErrorException(this)
 }
 
@@ -128,3 +144,4 @@ class DjiErrorException(djiError: IDJIError) : Exception(toString(djiError)) {
         }
     }
 }
+

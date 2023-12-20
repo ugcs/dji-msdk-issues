@@ -11,3 +11,16 @@ pluginManagement {
         id("org.jetbrains.kotlin.jvm") version "1.8.10"
     }
 }
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        google()
+        mavenCentral()
+        maven { setUrl("https://jitpack.io") }
+        maven {
+            setUrl("https://s3.amazonaws.com/repo.commonsware.com")
+        }
+        jcenter()
+    }
+}
