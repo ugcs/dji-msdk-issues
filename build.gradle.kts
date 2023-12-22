@@ -9,7 +9,7 @@ repositories {
 }
 
 object Versions {
-    const val dji_sdk = "5.7.0"
+    const val dji_sdk = "5.7.2"
 }
 
 
